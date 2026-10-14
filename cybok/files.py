@@ -103,12 +103,11 @@ def save_bytes(user_id, data, filename, mime=None, source="upload", meta=None, i
     return f
 
 
-def handle_upload(user_id, storage, max_mb):
-    filename = safe_display_name(storage.filename or "file")
+def handle_upload(user_id, filename, data, max_mb):
+    filename = safe_display_name(filename or "file")
     ext = file_ext(filename)
     if ext not in ALLOWED_EXT:
         raise UploadError(f"'.{ext or '?'}' files aren't supported. Try PDF, DOCX, TXT, CSV, XLSX, PPTX, code or images.")
-    data = storage.read(max_mb * 1024 * 1024 + 1)
     if len(data) > max_mb * 1024 * 1024:
         raise UploadError(f"File is larger than {max_mb} MB.")
     if not data:

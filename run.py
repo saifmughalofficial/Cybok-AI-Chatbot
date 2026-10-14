@@ -1,9 +1,9 @@
 """Cybok launcher.
 
-    python run.py                    start Cybok (http://127.0.0.1:5000)
+    python run.py                    start Cybok (Streamlit, http://127.0.0.1:5000)
     python run.py --port 8080        use another port
     python run.py --host 0.0.0.0     allow other devices on your network (phones, tablets)
-    python run.py --dev              development mode with auto-reload
+    python run.py --dev              development mode: reload when app.py is saved
     python run.py make-admin EMAIL   give an existing account the admin role
     python run.py reset-password EMAIL
     python run.py set-creation-date YYYY-MM-DD   (or "" to clear)
@@ -14,9 +14,8 @@ import argparse
 import getpass
 import os
 import secrets
+import subprocess
 import sys
-import threading
-import webbrowser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -56,8 +55,8 @@ def set_env_value(name, value):
 
 def check_dependencies():
     missing = []
-    for mod, pkg in (("flask", "Flask"), ("flask_sqlalchemy", "Flask-SQLAlchemy"), ("flask_login", "Flask-Login"),
-                     ("authlib", "Authlib"), ("requests", "requests"), ("dotenv", "python-dotenv"),
+    for mod, pkg in (("streamlit", "streamlit"), ("flask", "Flask"), ("flask_sqlalchemy", "Flask-SQLAlchemy"),
+                     ("requests", "requests"), ("dotenv", "python-dotenv"),
                      ("pypdf", "pypdf"), ("docx", "python-docx"), ("openpyxl", "openpyxl"), ("PIL", "Pillow")):
         try:
             __import__(mod)
@@ -90,9 +89,24 @@ def main():
     parser.add_argument("value", nargs="?")
     parser.add_argument("--host", default=os.getenv("HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.getenv("PORT", "5000")))
-    parser.add_argument("--dev", action="store_true", help="debug mode with auto-reload")
+    parser.add_argument("--dev", action="store_true", help="reload when app.py is saved")
     parser.add_argument("--no-browser", action="store_true", help="don't open the browser automatically")
     args = parser.parse_args()
+
+    if args.command == "serve":
+        shown_host = "127.0.0.1" if args.host in ("0.0.0.0", "::") else args.host
+        banner(f"http://{shown_host}:{args.port}")
+        if args.host in ("0.0.0.0", "::"):
+            print("   Other devices on your Wi-Fi can use http://<this-computer's-IP>:%d\n" % args.port)
+        cmd = [sys.executable, "-m", "streamlit", "run", str(ROOT / "app.py"),
+               "--server.port", str(args.port), "--server.address", args.host,
+               "--server.headless", "true" if args.no_browser else "false",
+               "--server.runOnSave", "true" if args.dev else "false",
+               "--browser.gatherUsageStats", "false"]
+        try:
+            sys.exit(subprocess.call(cmd))
+        except KeyboardInterrupt:
+            return
 
     from cybok import create_app
     from cybok.extensions import db
@@ -170,25 +184,6 @@ def main():
                 except ProviderError as exc:
                     print(f"  [FAIL] {m.name:<26} {str(exc)[:110]}")
         return
-
-    shown_host = "127.0.0.1" if args.host in ("0.0.0.0", "::") else args.host
-    url = f"http://{shown_host}:{args.port}"
-    banner(url)
-    if args.host in ("0.0.0.0", "::"):
-        print("   Other devices on your Wi-Fi can use http://<this-computer's-IP>:%d\n" % args.port)
-    if not args.no_browser and not os.environ.get("WERKZEUG_RUN_MAIN"):
-        threading.Timer(1.5, lambda: webbrowser.open(url)).start()
-
-    if args.dev:
-        app.run(host=args.host, port=args.port, debug=True, threaded=True)
-        return
-    try:
-        from waitress import serve
-        # send_bytes=1 flushes every chunk immediately so AI answers stream word by word.
-        serve(app, host=args.host, port=args.port, threads=16, channel_timeout=300, send_bytes=1,
-              ident="Cybok")
-    except ImportError:
-        app.run(host=args.host, port=args.port, threaded=True)
 
 
 if __name__ == "__main__":

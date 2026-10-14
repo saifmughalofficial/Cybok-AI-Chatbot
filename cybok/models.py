@@ -4,7 +4,6 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
-from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .extensions import db
@@ -22,7 +21,7 @@ def iso(dt):
     return dt.replace(tzinfo=timezone.utc).isoformat() if dt else None
 
 
-class User(UserMixin, db.Model):
+class User(db.Model):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
@@ -45,10 +44,6 @@ class User(UserMixin, db.Model):
     @property
     def is_admin(self):
         return self.role == "admin"
-
-    def get_id(self):
-        # Changing session_version (password change, logout everywhere) invalidates old sessions.
-        return f"{self.id}:{self.session_version}"
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
