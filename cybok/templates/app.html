@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Cybok{% endblock %}
+{% block body_class %}app-body{% endblock %}
+{% block head %}{% include "_md_libs.html" %}{% endblock %}
+{% block body %}
+<div class="app" id="app" data-sidebar="open">
+  <aside class="sidebar" id="sidebar" aria-label="Sidebar">
+    <div class="sb-head">
+      <a class="brand" href="/app" data-link><img class="brand-mark" src="{{ url_for('static', filename='img/mark.png') }}" alt="Cybok" width="34" height="34"><span class="wordmark">CYBOK</span></a>
+      <button class="icon-btn" id="sbCollapse" title="Close sidebar (Ctrl+B)" aria-label="Close sidebar"></button>
+    </div>
+    <button class="btn-new" id="newChatBtn" title="New chat (Ctrl+Shift+O)"><span class="plus"></span>New chat<kbd>Ctrl ⇧ O</kbd></button>
+    <button class="sb-search" id="openSearch"><span data-icon="search"></span>Search<kbd>Ctrl K</kbd></button>
+    <nav class="sb-nav" id="sbNav">
+      <a class="nav-item" href="/app" data-link data-nav="chat"><span data-icon="chat"></span>Chat</a>
+      <a class="nav-item" href="/app/images" data-link data-nav="images"><span data-icon="image"></span>Create Image</a>
+      <a class="nav-item" href="/app/logos" data-link data-nav="logos"><span data-icon="pen"></span>Logo Studio</a>
+      <a class="nav-item" href="/app/library" data-link data-nav="library"><span data-icon="library"></span>Library</a>
+    </nav>
+    <div class="sb-scroll" id="convList" aria-label="Conversations"></div>
+    <div class="sb-foot">
+      <a class="nav-item" href="/app/archived" data-link data-nav="archived"><span data-icon="archive"></span>Archived &amp; Trash</a>
+      <button class="user-chip" id="userMenuBtn" aria-haspopup="menu">
+        <span class="avatar" id="userAvatar"></span>
+        <span class="meta"><span class="name" id="userName">…</span><span class="email" id="userEmail"></span></span>
+        <span data-icon="more"></span>
+      </button>
+    </div>
+  </aside>
+  <div class="sb-backdrop" id="sbBackdrop"></div>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn" id="sbOpen" title="Open sidebar (Ctrl+B)" aria-label="Open sidebar"></button>
+      <button class="model-btn" id="modelBtn" aria-haspopup="menu" title="Choose AI model"><span class="name" id="modelName">Cybok</span><span id="modelBadge"></span><span data-icon="chevdown"></span></button>
+      <div class="title" id="topTitle"></div>
+      <div class="topbar-actions">
+        <span class="temp-pill" id="tempPill" hidden title="This chat won't be saved to your history"><span data-icon="clock"></span>Temporary</span>
+        <button class="icon-btn" id="shareBtn" title="Share conversation" aria-label="Share" hidden></button>
+        <button class="icon-btn" id="chatMenuBtn" title="Conversation options" aria-label="Conversation options" hidden></button>
+      </div>
+    </header>
+    <div id="announcements"></div>
+
+    <section class="view" id="view-chat" aria-label="Chat">
+      <div class="chat-scroll" id="chatScroll">
+        <div class="welcome" id="welcome">
+          <div class="orb"><img src="{{ url_for('static', filename='img/mark.png') }}" alt=""></div>
+          <h1 id="greeting">How can I help you today?</h1>
+          <p class="sub">Chat, create, analyze, generate and explore with <span class="grad-text" style="font-weight:700">Cybok</span>.</p>
+          <div class="suggestions" id="suggestions"></div>
+        </div>
+        <div class="chat-inner" id="messages" hidden></div>
+      </div>
+      <button class="scroll-bottom" id="scrollBottom" hidden aria-label="Scroll to bottom"></button>
+      <div class="composer-wrap">
+        <form class="composer" id="composer" autocomplete="off">
+          <div class="attach-tray" id="attachTray" hidden></div>
+          <textarea id="input" rows="1" placeholder="Message Cybok…" aria-label="Message Cybok" maxlength="60000"></textarea>
+          <div class="composer-bar">
+            <div class="left">
+              <button type="button" class="icon-btn" id="attachBtn" title="Attach files (PDF, DOCX, XLSX, CSV, images…)" aria-label="Attach files"></button>
+              <button type="button" class="icon-btn" id="imageModeBtn" title="Create an image (Ctrl+Shift+I)" aria-label="Image mode"></button>
+              <span class="mode-pill" id="imageModePill" hidden>
+                <span data-icon="image"></span>Image
+                <select id="imgStyleSel" aria-label="Image style"></select>
+                <select id="imgSizeSel" aria-label="Image size"></select>
+                <button type="button" id="imageModeOff" aria-label="Exit image mode"></button>
+              </span>
+            </div>
+            <div class="right">
+              <button type="button" class="icon-btn" id="voiceModeBtn" title="Voice conversation" aria-label="Voice conversation"></button>
+              <button type="button" class="icon-btn" id="micBtn" title="Dictate (speech to text)" aria-label="Dictate"></button>
+              <button type="submit" class="send-btn" id="sendBtn" aria-label="Send message" disabled></button>
+            </div>
+          </div>
+          <div class="drop-overlay">Drop files to attach</div>
+        </form>
+        <div class="composer-note" id="composerNote">Cybok can make mistakes. Check important info.</div>
+      </div>
+    </section>
+
+    <section class="view" id="view-images" hidden aria-label="Create image"></section>
+    <section class="view" id="view-logos" hidden aria-label="Logo studio"></section>
+    <section class="view" id="view-library" hidden aria-label="Library"></section>
+    <section class="view" id="view-archived" hidden aria-label="Archived and trash"></section>
+  </main>
+</div>
+<input type="file" id="fileInput" multiple hidden>
+<form id="logoutForm" method="post" action="{{ url_for('auth.logout') }}" hidden><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/app.js') }}?v={{ asset_v }}"></script>{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "auth/_layout.html" %}
+{% block title %}Sign in · Cybok{% endblock %}
+{% block card %}
+<h1>Welcome back</h1>
+<p class="lead">Sign in to continue to your workspace.</p>
+{% include "auth/_google.html" %}
+<form method="post" novalidate data-busy-form>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="field">
+    <label for="email">E-mail</label>
+    <input class="input" id="email" name="email" type="email" autocomplete="email" required value="{{ email or '' }}" autofocus>
+  </div>
+  <div class="field">
+    <div class="row"><label for="password" class="label">Password</label><span class="spacer"></span><a class="small" href="{{ url_for('auth.forgot') }}">Forgot password?</a></div>
+    <div class="pw-wrap">
+      <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+      <button class="icon-btn sm" type="button" data-toggle-pw aria-label="Show password"><svg class="icon sm" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
+  </div>
+  <label class="check-row"><input type="checkbox" name="remember" value="1" checked> Keep me signed in</label>
+  <button class="btn brand lg" type="submit">Sign in</button>
+</form>
+<p class="auth-foot">New to Cybok? <a href="{{ url_for('auth.signup') }}">Create an account</a></p>
+{% endblock %}

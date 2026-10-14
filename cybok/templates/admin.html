@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Admin · Cybok{% endblock %}
+{% block body_class %}app-body{% endblock %}
+{% block body %}
+<div class="app" id="app" data-sidebar="open">
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-head">
+      <a class="brand" href="/app"><img class="brand-mark" src="{{ url_for('static', filename='img/mark.png') }}" alt="" width="34" height="34"><span class="wordmark">CYBOK</span></a>
+      <span class="badge grad" style="margin-left:auto">Admin</span>
+    </div>
+    <nav class="sb-nav admin-tabs" id="adminTabs" style="border:0"></nav>
+    <div class="spacer"></div>
+    <div class="sb-foot">
+      <a class="nav-item" href="/app" id="backToApp"></a>
+    </div>
+  </aside>
+  <div class="sb-backdrop" id="sbBackdrop"></div>
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn" id="sbOpen" aria-label="Menu"></button>
+      <div class="title" id="adminTitle" style="text-align:left">Overview</div>
+    </header>
+    <div class="page" id="adminPage"><div class="page-inner" id="adminRoot"></div></div>
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/admin.js') }}?v={{ asset_v }}"></script>{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Cybok — Your AI. Your Workspace.{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}?v={{ asset_v }}">{% endblock %}
+{% block body_class %}landing{% endblock %}
+{% macro ic(path) %}<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">{{ path|safe }}</svg>{% endmacro %}
+{% block body %}
+<header class="lnav" id="lnav">
+  <a class="brand" href="/"><img class="brand-mark" src="{{ url_for('static', filename='img/mark.png') }}" alt="" width="34" height="34"><span class="wordmark">CYBOK</span></a>
+  <nav class="lnav-links">
+    <a href="#features">Features</a><a href="#models">AI Models</a><a href="#how">How it works</a><a href="#faq">FAQ</a>
+  </nav>
+  <div class="lnav-actions">
+    <button class="icon-btn" data-theme-toggle aria-label="Toggle theme">{{ ic('<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>') }}</button>
+    {% if current_user.is_authenticated %}
+      <a class="btn brand sm" href="/app">Open Cybok</a>
+    {% else %}
+      <a class="btn ghost sm hide-sm" href="/login">Sign in</a>
+      <a class="btn brand sm" href="/signup">Start Chatting</a>
+    {% endif %}
+  </div>
+</header>
+
+<section class="hero">
+  <canvas id="heroNet" aria-hidden="true"></canvas>
+  <div class="hero-glow r"></div><div class="hero-glow b"></div>
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <span class="pill reveal"><span class="dot"></span>100% free · No credit card · Open AI models</span>
+      <h1 class="reveal"><span class="wordmark hero-word">CYBOK</span><span class="hero-tag">Your AI. <span class="grad-text">Your Workspace.</span></span></h1>
+      <p class="lead reveal">Chat, create, analyze, generate and explore with Cybok — an AI workspace built for everyday productivity.</p>
+      <div class="hero-cta reveal">
+        <a class="btn brand lg" href="{{ '/app' if current_user.is_authenticated else '/signup' }}">Start Chatting
+          {{ ic('<path d="M5 12h14M12 5l7 7-7 7"/>') }}</a>
+        <a class="btn lg glass" href="#features">Explore Cybok</a>
+      </div>
+      <div class="hero-stats reveal">
+        <div><b>7+</b><span>free AI models</span></div>
+        <div><b>Rs 0</b><span>cost, forever</span></div>
+        <div><b>∞</b><span>ideas to explore</span></div>
+      </div>
+    </div>
+    <div class="hero-visual reveal">
+      <img class="hero-logo" src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Cybok logo" width="440" height="440">
+      <div class="float-card c1">{{ ic('<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>') }}<span>Image created</span></div>
+      <div class="float-card c2">{{ ic('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>') }}<span>report.pdf analyzed</span></div>
+      <div class="float-card c3">{{ ic('<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>') }}<span>Code ready</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="demo-wrap">
+  <div class="demo reveal" aria-label="Cybok preview">
+    <div class="demo-bar"><i></i><i></i><i></i><span>cybok · Cybok Fast</span></div>
+    <div class="demo-body">
+      <div class="demo-msg user">Summarize this sales sheet and find the best month 📊</div>
+      <div class="demo-msg ai"><img src="{{ url_for('static', filename='img/mark.png') }}" alt=""><div id="demoTyping"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="section-head reveal">
+    <span class="eyebrow">Everything in one place</span>
+    <h2>A complete AI workspace — <span class="grad-text">free</span></h2>
+    <p>Eight powerful tools, one beautiful app. Private to you, fast on every device.</p>
+  </div>
+  <div class="features">
+    {% set feats = [
+      ('AI Chat', 'Ask anything, write, code, translate, solve math and brainstorm with streaming answers.', '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),
+      ('Image Generation', 'Describe it and see it. 12 styles, 4 sizes, up to 4 images at once — free.', '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>'),
+      ('Logo Generation', 'Instant vector logos plus AI-designed concepts for your brand.', '<path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18"/><path d="m2.3 2.3 7.286 7.286"/><circle cx="11" cy="11" r="2"/>'),
+      ('File Analysis', 'Upload PDF, Word, Excel, CSV, PowerPoint, code or images and ask questions.', '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/>'),
+      ('AI Models', 'Pick from free open models — Llama, gpt-oss and more. Always clearly labelled.', '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>'),
+      ('Personal Library', 'Every upload, image, logo and saved answer — searchable and organized.', '<path d="m16 6 4 14M12 6v14M8 8v12M4 4v16"/>'),
+      ('Chat History', 'Auto-saved chats with pin, archive, rename, search, share and restore.', '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'),
+      ('Powerful Workspace', 'Voice chat, dark mode, shortcuts, secure sharing and an admin dashboard.', '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>'),
+    ] %}
+    {% for title, text, path in feats %}
+    <article class="feature reveal" style="--d: {{ loop.index0 * 60 }}ms">
+      <div class="fi">{{ ic(path) }}</div>
+      <h3>{{ title }}</h3>
+      <p>{{ text }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="section alt" id="models">
+  <div class="section-head reveal">
+    <span class="eyebrow">Free & open</span>
+    <h2>Powered by open AI models</h2>
+    <p>Cybok uses openly licensed models through their official free APIs or your own computer. The model in use is always shown.</p>
+  </div>
+  <div class="model-grid">
+    {% for m in models %}
+    <div class="model-card reveal" style="--d: {{ loop.index0 * 50 }}ms">
+      <div class="row"><b>{{ m.name }}</b>{% if m.badge %}<span class="badge {{ 'grad' if loop.first else '' }}">{{ m.badge }}</span>{% endif %}</div>
+      <p>{{ m.description }}</p>
+      <small>{{ m.family }} · {{ m.provider }}</small>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="section" id="how">
+  <div class="section-head reveal">
+    <span class="eyebrow">Simple</span>
+    <h2>Start in under a minute</h2>
+  </div>
+  <div class="steps">
+    <div class="step reveal"><span>1</span><h3>Create your free account</h3><p>Sign up with e-mail or Google. No payment, ever.</p></div>
+    <div class="step reveal" style="--d:80ms"><span>2</span><h3>Ask, upload or create</h3><p>Chat, drop in a document, or describe an image or logo.</p></div>
+    <div class="step reveal" style="--d:160ms"><span>3</span><h3>Keep everything</h3><p>Chats auto-save. Pin favourites and keep creations in your Library.</p></div>
+  </div>
+</section>
+
+<section class="section alt" id="faq">
+  <div class="section-head reveal"><span class="eyebrow">Questions</span><h2>Frequently asked</h2></div>
+  <div class="faq">
+    <details class="reveal"><summary>Is Cybok really free?</summary><p>Yes. Cybok uses free, openly licensed AI models. The default model and image generator work without any API key. Optional extra models use free accounts from Groq or OpenRouter, or run on your own computer with Ollama.</p></details>
+    <details class="reveal"><summary>Is my data private?</summary><p>Your chats, files and creations are private to your account. Messages are sent to the selected model's provider only to generate answers. You can export or delete everything at any time.</p></details>
+    <details class="reveal"><summary>What files can I analyze?</summary><p>PDF, DOCX, PPTX, ODT, TXT, Markdown, CSV, XLSX, JSON, HTML, most code files and images (PNG, JPG, WebP, GIF).</p></details>
+    <details class="reveal"><summary>Does it work on my phone?</summary><p>Yes — Cybok is fully responsive and can be installed to your home screen like an app.</p></details>
+    <details class="reveal"><summary>Who made Cybok?</summary><p>Cybok was created by Saif Mughal, a university student from Faisalabad, Pakistan.</p></details>
+  </div>
+</section>
+
+<section class="cta reveal">
+  <img src="{{ url_for('static', filename='img/mark.png') }}" alt="" width="72" height="72">
+  <h2>Your AI. Your Workspace.</h2>
+  <p>Join Cybok today — it's free.</p>
+  <a class="btn brand lg" href="{{ '/app' if current_user.is_authenticated else '/signup' }}">Start Chatting</a>
+</section>
+
+<footer class="lfoot">
+  <div class="brand"><img class="brand-mark" src="{{ url_for('static', filename='img/mark.png') }}" alt="" width="28" height="28"><span class="wordmark">CYBOK</span></div>
+  <span class="muted small">Your AI. Your Workspace. · © {{ 2026 }} Cybok</span>
+  <nav><a href="/terms">Terms &amp; Privacy</a><a href="/login">Sign in</a></nav>
+  <span class="credit-line">Created by Saif Mughal · University Student • Faisalabad, Pakistan</span>
+</footer>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/landing.js') }}?v={{ asset_v }}"></script>{% endblock %}

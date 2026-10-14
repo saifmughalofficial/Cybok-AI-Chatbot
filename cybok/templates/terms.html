@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Terms & Privacy · Cybok{% endblock %}
+{% block body %}
+<header class="simple-top">
+  <a class="brand" href="/"><img class="brand-mark" src="{{ url_for('static', filename='img/mark.png') }}" alt=""><span class="wordmark">CYBOK</span></a>
+  <a class="btn sm" href="/app">Open Cybok</a>
+</header>
+<div class="share-wrap md">
+  <h1>Terms &amp; Privacy Notice</h1>
+  <p class="muted">Plain-language summary for this Cybok installation.</p>
+  <h3>Your data</h3>
+  <ul>
+    <li>Your conversations, files, images, logos and settings are private to your account. Other users cannot see them.</li>
+    <li>When you send a message, its text (and the text of attached files) is sent to the AI provider of the model you selected (for example Groq, OpenRouter, Pollinations.ai, or a local Ollama server) to generate the answer. Each provider has its own terms.</li>
+    <li>You can export all your data or permanently delete your account from <b>Settings → Privacy &amp; Data</b>.</li>
+    <li>Shared links only show the shared conversation — never your name, e-mail or other chats — and you can disable them at any time.</li>
+  </ul>
+  <h3>Acceptable use</h3>
+  <ul>
+    <li>Don't use Cybok to create illegal, harmful or abusive content, or to violate others' rights.</li>
+    <li>AI can make mistakes. Check important information before relying on it.</li>
+    <li>Generated images and text are provided as-is. Respect the terms of the underlying model providers.</li>
+  </ul>
+  <h3>AI models</h3>
+  <p>Cybok uses openly available models (such as Meta Llama, gpt-oss and FLUX) through their providers' official APIs or self-hosted servers. The model in use is always shown in the chat.</p>
+  <p class="credit">Cybok · Manufactured by Saif Mughal</p>
+</div>
+{% endblock %}

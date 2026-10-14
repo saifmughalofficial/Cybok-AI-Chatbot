@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="auth-page">
+  <aside class="auth-art">
+    <canvas id="netCanvas" aria-hidden="true"></canvas>
+    <div class="glow r"></div><div class="glow b"></div>
+    <a class="brand" href="/"><img class="brand-mark" src="{{ url_for('static', filename='img/mark.png') }}" alt=""><span class="wordmark">CYBOK</span></a>
+    <img class="hero-logo" src="{{ url_for('static', filename='img/logo.jpg') }}" alt="Cybok logo" width="360" height="360">
+    <div>
+      <h2>Your AI. Your Workspace.</h2>
+      <p>Chat, create, analyze, generate and explore with Cybok — an AI workspace built for everyday productivity.</p>
+    </div>
+  </aside>
+  <main class="auth-main">
+    <button class="icon-btn theme-fab" data-theme-toggle title="Toggle theme" aria-label="Toggle theme">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+    </button>
+    <div class="auth-card">
+      <a class="brand mobile-brand" href="/"><img class="brand-mark" src="{{ url_for('static', filename='img/mark.png') }}" alt=""><span class="wordmark">CYBOK</span></a>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}<div class="flash {{ 'error' if cat == 'error' else 'success' }}" role="alert">{{ msg }}</div>{% endfor %}
+      {% endwith %}
+      {% block card %}{% endblock %}
+    </div>
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/auth.js') }}?v={{ asset_v }}"></script>{% endblock %}
