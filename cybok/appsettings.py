@@ -8,7 +8,7 @@ DEFAULTS = {
     "registration_open": "1",
     "max_upload_mb": "20",
     "system_prompt_extra": "",
-    "image_provider": "pollinations",
+    "image_provider": "flux-krea",  # falls back to Pollinations when HF_TOKEN is missing or out of credits
     "image_model": "flux",
     "hf_image_model": "black-forest-labs/FLUX.1-schnell",
     "default_model": "",

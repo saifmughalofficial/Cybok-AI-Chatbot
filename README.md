@@ -23,12 +23,34 @@ python -m venv .venv
 
 macOS/Linux: `bash start.sh`
 
+### Image & video models (Hugging Face)
+
+FLUX.1 Krea and Wan2.1 run through Hugging Face Inference Providers. Create a token with the
+**"Make calls to Inference Providers"** permission at https://huggingface.co/settings/tokens and set `HF_TOKEN`
+(in `.env`, or paste it in **Admin › Free AI keys**). Free Hugging Face accounts get a small monthly credit;
+when it runs out, images fall back to free Pollinations automatically and video shows a clear message.
+
+### Deploy on Streamlit Community Cloud
+
+1. https://share.streamlit.io › **Create app** › repo `saifmughalofficial/Cybok-AI-Chatbot`, branch `main`, file `app.py`.
+2. **Advanced settings › Secrets**:
+
+   ```toml
+   SECRET_KEY = "any-long-random-text"
+   GROQ_API_KEY = "gsk_..."
+   HF_TOKEN = "hf_..."
+   ```
+3. Deploy. Every push to `main` redeploys automatically.
+   Note: Streamlit Cloud storage is temporary — for permanent accounts/chats set `DATABASE_URL` to a PostgreSQL database.
+
 ## Features
 
 - Streaming AI chat with Markdown, code, tables, math, copy, regenerate, edit & resend, stop, like/dislike
 - Model selector with free open models (Groq, OpenRouter, Ollama, Pollinations) and **automatic fallback**
 - Voice dictation in the chat box (Groq Whisper, needs the free Groq key)
-- Create Image (12 styles, 4 sizes, up to 4 images) and `/image <prompt>` inside chats
+- Create Image with **[FLUX.1 Krea [dev]](https://huggingface.co/black-forest-labs/FLUX.1-Krea-dev)** (12 styles, 4 sizes, up to 4 images), with automatic fallback to free Pollinations
+- Create Video with **[Wan2.1 T2V 1.3B](https://huggingface.co/Wan-AI/Wan2.1-T2V-1.3B)**
+- Image and video right inside the chatbot: **💬 Chat / 🎨 Image / 🎬 Video** mode, or `/image …` and `/video …`
 - Logo Studio: instant vector SVG logos + AI concepts
 - File analysis: PDF, DOCX, PPTX, ODT, TXT, CSV, XLSX, JSON, HTML, code, images (vision models)
 - Library with search, filters, sort, folders, preview, rename, download, delete
@@ -59,7 +81,8 @@ cybok/__init__.py      database setup (Flask-SQLAlchemy container, no web server
 cybok/services.py      business logic used by the UI (auth, chats, streaming, files, admin…)
 cybok/models.py        database models (users, conversations, messages, files, generated content, settings…)
 cybok/ai/chat.py       model registry + streaming OpenAI-compatible client + fallback
-cybok/ai/images.py     image providers (Pollinations, Hugging Face)
+cybok/ai/images.py     image providers (FLUX.1 Krea, Pollinations, Hugging Face)
+cybok/ai/video.py      text-to-video (Wan2.1 T2V 1.3B)
 cybok/ai/logos.py      vector logo generator
 cybok/files.py         secure uploads + text extraction
 cybok/identity.py      Cybok's identity answers + system prompt

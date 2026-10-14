@@ -20,6 +20,7 @@ DATA_EXT = {"csv", "tsv", "xlsx", "xlsm"}
 CODE_EXT = {"py", "js", "ts", "jsx", "tsx", "java", "c", "h", "cpp", "hpp", "cs", "go", "rs", "rb", "php", "sql",
             "yaml", "yml", "ini", "toml", "css", "scss", "sh", "bat", "ps1", "kt", "swift", "dart", "r", "m", "lua"}
 IMAGE_EXT = {"png", "jpg", "jpeg", "gif", "webp", "bmp"}
+VIDEO_EXT = {"mp4", "webm"}  # generated only, not accepted as uploads
 ALLOWED_EXT = DOC_EXT | DATA_EXT | CODE_EXT | IMAGE_EXT
 
 MIME = {
@@ -62,6 +63,8 @@ def safe_display_name(filename):
 def kind_for(ext):
     if ext in IMAGE_EXT:
         return "image"
+    if ext in VIDEO_EXT:
+        return "video"
     if ext in DATA_EXT:
         return "data"
     if ext in CODE_EXT:

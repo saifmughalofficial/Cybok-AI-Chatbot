@@ -15,8 +15,9 @@ from sqlalchemy import func, or_
 
 from .ai import images as image_ai
 from .ai import logos as logo_ai
-from .ai.chat import (FREE_KEYS, ProviderError, _local_cache, complete, fallback_models, get_model, is_available,
-                      model_public, resolve_key, stream_chat)
+from .ai import video as video_ai
+from .ai.chat import (FREE_KEYS, ProviderError, _local_cache, complete, fallback_models, get_model, get_secret,
+                      is_available, resolve_key, stream_chat)
 from .ai.images import PROVIDERS as IMAGE_PROVIDERS
 from .appsettings import get_setting, set_setting, setting_bool
 from .extensions import db
@@ -516,12 +517,59 @@ def chat_image(user, conv, prompt, style="none", size="square"):
     db.session.commit()
 
 
+def chat_video(user, conv, prompt):
+    """Video generation from inside a conversation."""
+    prompt = clean_text(prompt, 1500)
+    if not prompt:
+        raise ServiceError("Describe the video you want.")
+    db.session.add(Message(conversation_id=conv.id, role="user", content=f"\U0001f3ac Create video: {prompt}"))
+    if conv.title == "New chat":
+        conv.title = heuristic_title("Video: " + prompt)
+    db.session.commit()
+    try:
+        g = generate_video(user, prompt)
+        content = (f"Here's your video — *{prompt}*\n\n![{prompt.replace(']', '')}](/media/file/{g.file_id})\n\n"
+                   f"<sub>Generated with {video_ai.VIDEO_LABEL}</sub>")
+        a = Message(conversation_id=conv.id, role="assistant", model="video", content=content)
+    except (image_ai.ImageError, ServiceError) as exc:
+        a = Message(conversation_id=conv.id, role="assistant", content=f"⚠️ {exc}", status="error", model="video")
+    db.session.add(a)
+    conv.updated_at = utcnow()
+    db.session.commit()
+
+
+def generate_video(user, prompt):
+    problem = rate_problem("video", user.id, cfg("RATE_IMAGE_PER_MIN"))
+    if problem:
+        raise ServiceError(problem)
+    prompt = clean_text(prompt, 1500)
+    if not prompt:
+        raise ServiceError("Describe the video you want.")
+    try:
+        data = video_ai.generate(prompt, get_secret("HF_TOKEN"))
+    except image_ai.ImageError as exc:
+        log_error("video", str(exc), user.id)
+        log_usage("video", video_ai.VIDEO_MODEL, ok=False, user_id=user.id)
+        raise
+    name = safe_display_name(re.sub(r"\s+", "-", prompt[:40]).strip("-") or "video") + ".mp4"
+    f = save_bytes(user.id, data, name, mime="video/mp4", source="generated", in_library=False)
+    g = GeneratedContent(user_id=user.id, content_type="video", title=prompt[:120], prompt=prompt, file_id=f.id,
+                         style="wan2.1", meta=json.dumps({"provider": video_ai.VIDEO_LABEL}), saved=False)
+    db.session.add(g)
+    db.session.commit()
+    log_usage("video", video_ai.VIDEO_MODEL, user_id=user.id)
+    return g
+
+
 # ------------------------------------------------------------------ images & logos
-def generate_images(user, prompt, style, size, count, content_type, extra_meta=None, prompts=None, seeds=None):
+def generate_images(user, prompt, style, size, count, content_type, extra_meta=None, prompts=None, seeds=None,
+                    provider=None):
     problem = rate_problem("image", user.id, cfg("RATE_IMAGE_PER_MIN"))
     if problem:
         raise ServiceError(problem)
     conf = image_ai.image_config()
+    if provider in IMAGE_PROVIDERS:
+        conf["image_provider"] = provider
     prompts = prompts or [prompt] * count
     seeds = seeds or [None] * len(prompts)
     # The keyless image tier allows one request at a time, so generate sequentially unless a token is set.
@@ -635,7 +683,7 @@ def library(user, t="all", q="", folder="__all__", sort="new"):
         if t != "all":
             fq = fq.filter_by(kind=t)
         items += [("file", f) for f in fq.limit(2000)]
-    if t in ("all", "image", "logo", "text"):
+    if t in ("all", "image", "logo", "text", "video"):
         gq = GeneratedContent.query.filter_by(user_id=user.id, saved=True)
         if t != "all":
             gq = gq.filter_by(content_type=t)
@@ -846,7 +894,7 @@ def admin_stats():
     for root, _, files in os.walk(storage_root()):
         disk += sum(os.path.getsize(os.path.join(root, f)) for f in files)
     start = (now - timedelta(days=13)).date()
-    series = {(start + timedelta(days=i)).isoformat(): {"chat": 0, "image": 0, "logo": 0, "upload": 0} for i in range(14)}
+    series = {(start + timedelta(days=i)).isoformat(): {"chat": 0, "image": 0, "video": 0, "logo": 0, "upload": 0} for i in range(14)}
     rows = (db.session.query(func.date(UsageEvent.created_at), UsageEvent.kind, func.count(UsageEvent.id))
             .filter(UsageEvent.created_at >= start).group_by(func.date(UsageEvent.created_at), UsageEvent.kind).all())
     for d, kind, n in rows:
@@ -865,7 +913,7 @@ def admin_stats():
         "AI requests": usage("chat"),
         "AI failures": count(db.session.query(func.count(UsageEvent.id)).filter(
             UsageEvent.kind == "chat", UsageEvent.ok.is_(False))),
-        "Images": usage("image"), "Logos": usage("logo"), "Uploads": usage("upload"),
+        "Images": usage("image"), "Videos": usage("video"), "Logos": usage("logo"), "Uploads": usage("upload"),
         "Storage (MB)": round(disk / 1048576, 1),
         "Errors today": count(db.session.query(func.count(ErrorLog.id)).filter(ErrorLog.created_at >= day_ago)),
     }, series, [(names.get(m, m or "unknown"), n) for m, n in model_rows]

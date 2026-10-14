@@ -3,13 +3,21 @@
     streamlit run app.py        (or: python run.py)
 """
 import json
+import os
 import re
+import secrets
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env", override=True)  # before importing cybok: Config reads the environment at import time
+if not os.getenv("SECRET_KEY"):  # e.g. Streamlit Cloud without a SECRET_KEY secret: keep one in instance/
+    _key_file = ROOT / "instance" / ".secret_key"
+    _key_file.parent.mkdir(exist_ok=True)
+    if not _key_file.exists():
+        _key_file.write_text(secrets.token_urlsafe(48))
+    os.environ["SECRET_KEY"] = _key_file.read_text().strip()
 
 import pandas as pd  # noqa: E402
 import requests  # noqa: E402
@@ -19,6 +27,7 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer  # noqa: E402
 from cybok import create_app  # noqa: E402
 from cybok import services as sv  # noqa: E402
 from cybok.ai import images as image_ai  # noqa: E402
+from cybok.ai import video as video_ai  # noqa: E402
 from cybok.ai.chat import (default_model_slug, enabled_models, get_secret, is_available,  # noqa: E402
                            unavailable_reason)
 from cybok.appsettings import all_settings  # noqa: E402
@@ -142,7 +151,7 @@ def render_md(text, owner_id):
             st.markdown(text[pos:m.start()])
         f = sv.files_by_id(owner_id, [m.group(2)]).get(m.group(2))
         if f:
-            st.image(str(abs_path(f.storage_path)), caption=m.group(1) or None)
+            show_media(f, caption=m.group(1) or None)
         pos = m.end()
     if text[pos:].strip():
         st.markdown(text[pos:])
@@ -152,6 +161,15 @@ def thumb(f):
     p = abs_path(f.storage_path)
     t = Path(str(p) + ".thumb.webp")
     return str(t if t.exists() else p)
+
+
+def show_media(f, caption=None, small=False):
+    if f.kind == "video":
+        st.video(str(abs_path(f.storage_path)))
+        if caption:
+            st.caption(caption)
+    else:
+        st.image(thumb(f) if small else str(abs_path(f.storage_path)), caption=caption)
 
 
 def render_attachments(msg, owner_id):
@@ -266,7 +284,7 @@ def sidebar(user):
         brand()
         if st.button("✏️  New chat", width="stretch", type="primary"):
             go("chat", cid=None)
-        for page, label in (("image", "🎨  Create image"), ("logo", "✨  Logo studio"),
+        for page, label in (("image", "🎨  Create image"), ("video", "🎬  Create video"), ("logo", "✨  Logo studio"),
                             ("library", "📚  Library"), ("search", "🔍  Search")):
             if st.button(label, width="stretch", type="tertiary", key=f"nav-{page}"):
                 go(page)
@@ -348,10 +366,11 @@ def message_actions(user, conv, m, is_last):
     if cols[3].button("💾", key=f"sv{m.id}", type="tertiary", help="Save to Library"):
         sv.save_message(user, m.id)
         st.toast("Saved to your Library.")
-    if is_last and cols[4].button("🔄", key=f"rg{m.id}", type="tertiary", help="Regenerate"):
+    media = m.model in ("image", "video")
+    if is_last and not media and cols[4].button("🔄", key=f"rg{m.id}", type="tertiary", help="Regenerate"):
         ss.pending = {"mode": "regenerate"}
         st.rerun()
-    if m.model and m.model != "image":
+    if m.model and not media:
         cols[5].caption(model_label(m.model, {x.slug: x for x in AIModel.query.all()}).split("  ·  ")[0])
 
 
@@ -406,10 +425,13 @@ def page_chat(user):
                  "(paste a free Groq key) or by installing Ollama and running `ollama pull llama3.2`.")
     current = (conv.model if conv else None) or s.default_model
     current = current if current in available else default_model_slug()
-    c1, c2 = st.columns([3, 1], vertical_alignment="bottom")
+    c0, c1, c2 = st.columns([2, 3, 1], vertical_alignment="center")
+    mode = c0.segmented_control("Mode", ["chat", "image", "video"], default="chat", key="chat_mode",
+                                format_func={"chat": "💬 Chat", "image": "🎨 Image", "video": "🎬 Video"}.get,
+                                label_visibility="collapsed") or "chat"
     model_slug = c1.selectbox("Model", available, index=available.index(current) if current in available else 0,
                               format_func=lambda x: model_label(x, models), key=f"model-{ss.get('cid')}",
-                              label_visibility="collapsed") if available else None
+                              label_visibility="collapsed", disabled=mode != "chat") if available else None
     temporary = c2.toggle("Temporary chat", help="Not saved in your history.") if not conv else conv.temporary
 
     if conv:
@@ -431,7 +453,7 @@ def page_chat(user):
             else:
                 with st.chat_message("assistant", avatar=MARK):
                     render_md(m.content, user.id)
-                    if m.status == "error":
+                    if m.status == "error" and m.model not in ("image", "video"):
                         st.caption("⚠️ This answer failed. Press 🔄 to try again.")
                     if conv.deleted_at is None:
                         message_actions(user, conv, m, m.id == last_asst)
@@ -440,11 +462,14 @@ def page_chat(user):
         st.info("This chat is in the Trash. Restore it from the ⋯ menu to continue.")
         return
 
-    prompt = st.chat_input("Message Cybok…  (start with /image to create a picture)", accept_file="multiple",
+    placeholder = {"image": "Describe the image to create (FLUX.1 Krea)…",
+                   "video": "Describe the video to create (Wan2.1, takes ~1 min)…"}.get(
+        mode, "Message Cybok…  (/image or /video to create media)")
+    prompt = st.chat_input(placeholder, accept_file="multiple",
                            file_type=sorted(ALLOWED_EXT), accept_audio=bool(get_secret("GROQ_API_KEY")),
-                           disabled=not available)
+                           disabled=not available and mode == "chat")
     pending = ss.pop("pending", None)
-    if not (prompt or pending) or not model_slug:
+    if not (prompt or pending) or (not model_slug and mode == "chat"):
         return
     if conv is None:
         conv = sv.create_chat(user, model_slug, temporary=temporary)
@@ -459,9 +484,15 @@ def page_chat(user):
         if getattr(prompt, "audio", None):
             with st.spinner("Listening…"):
                 text = (text + " " + transcribe(prompt.audio)).strip()
-        if text.lower().startswith("/image"):
+        if text.lower().startswith(("/image", "/video")):
+            mode, text = text[1:6].lower(), text[6:].strip()
+        if mode == "image":
             with st.chat_message("assistant", avatar=MARK), st.spinner("Painting your image…"):
-                sv.chat_image(user, conv, text[6:].strip())
+                sv.chat_image(user, conv, text)
+            st.rerun()
+        if mode == "video":
+            with st.chat_message("assistant", avatar=MARK), st.spinner("Filming your video… this can take a minute."):
+                sv.chat_video(user, conv, text)
             st.rerun()
         ids = []
         for f in prompt.files:
@@ -486,7 +517,7 @@ def page_chat(user):
 def gen_card(user, g, col):
     with col:
         if g.file:
-            st.image(thumb(g.file))
+            show_media(g.file, small=True)
         elif g.output:
             st.image(g.output)
         st.caption(g.title)
@@ -517,6 +548,12 @@ def page_image(user):
     st.title("🎨 Create image")
     with st.form("img"):
         prompt = st.text_area("Describe your image", placeholder="A cozy cabin in snowy mountains at sunset")
+        providers = list(image_ai.PROVIDERS)
+        default = all_settings().get("image_provider")
+        provider = st.selectbox("Image model", providers, index=providers.index(default) if default in providers else 0,
+                                format_func=lambda p: image_ai.PROVIDERS[p][0],
+                                help="FLUX.1 Krea [dev] gives the most natural, photographic results. It needs "
+                                     "HF_TOKEN; if it fails, Cybok falls back to the free Pollinations model.")
         c1, c2, c3 = st.columns(3)
         style = c1.selectbox("Style", list(image_ai.STYLES), format_func=lambda k: image_ai.STYLES[k][0])
         size = c2.selectbox("Size", list(image_ai.SIZES),
@@ -529,11 +566,32 @@ def page_image(user):
         else:
             with st.spinner("Creating your image… free models can take up to a minute."):
                 try:
-                    sv.generate_images(user, sv.clean_text(prompt, 1500), style, size, count, "image")
+                    items = sv.generate_images(user, sv.clean_text(prompt, 1500), style, size, count, "image",
+                                               provider=provider)
+                    for label in {json.loads(g.meta or "{}").get("provider", "") for g in items}:
+                        (st.warning if "fallback" in label else st.success)(f"Generated with {label}")
                 except (sv.ServiceError, image_ai.ImageError) as exc:
                     st.error(str(exc))
     st.subheader("Recent")
     grid(user, sv.list_generated(user, "image", 24))
+
+
+def page_video(user):
+    st.title("🎬 Create video")
+    st.caption(f"Text-to-video with **{video_ai.VIDEO_MODEL}** (needs HF_TOKEN). A clip takes about a minute.")
+    with st.form("vid"):
+        prompt = st.text_area("Describe your video", placeholder="A corgi running on a beach at golden hour, "
+                                                                 "slow motion, cinematic")
+        go_btn = st.form_submit_button("Generate video", type="primary")
+    if go_btn:
+        with st.spinner("Filming your video… this can take a minute."):
+            try:
+                sv.generate_video(user, prompt)
+                st.success(f"Generated with {video_ai.VIDEO_LABEL}")
+            except (sv.ServiceError, image_ai.ImageError) as exc:
+                st.error(str(exc))
+    st.subheader("Recent")
+    grid(user, sv.list_generated(user, "video", 12), n=2)
 
 
 def page_logo(user):
@@ -566,7 +624,8 @@ def page_logo(user):
 def page_library(user):
     st.title("📚 Library")
     c1, c2, c3, c4 = st.columns([2, 3, 2, 2])
-    t = c1.selectbox("Type", ["all", "document", "data", "code", "image", "logo", "text"], format_func=str.title)
+    t = c1.selectbox("Type", ["all", "document", "data", "code", "image", "video", "logo", "text"],
+                     format_func=str.title)
     q = c2.text_input("Search", placeholder="Search names and contents")
     items, folders, used = sv.library(user, t, q, "__all__", "new")
     folder = c3.selectbox("Folder", ["__all__"] + folders, format_func=lambda f: "All folders" if f == "__all__" else f)
@@ -588,7 +647,7 @@ def page_library(user):
     for kind, obj in items[:150]:
         is_file = kind == "file"
         title = obj.name if is_file else obj.title
-        icon = {"image": "🖼", "data": "📊", "code": "💻", "logo": "✨", "text": "📝"}.get(
+        icon = {"image": "🖼", "data": "📊", "code": "💻", "logo": "✨", "text": "📝", "video": "🎬"}.get(
             obj.kind if is_file else obj.content_type, "📄")
         with st.expander(f"{icon} {title}" + (f"  ·  📁 {obj.folder}" if obj.folder else "")):
             if is_file:
@@ -603,7 +662,7 @@ def page_library(user):
                                        key=f"ldl{obj.id}")
             else:
                 if obj.file:
-                    st.image(thumb(obj.file))
+                    show_media(obj.file, small=True)
                 elif obj.content_type == "logo" and obj.output:
                     st.image(obj.output)
                 else:
@@ -899,7 +958,7 @@ def page_admin(user):
 
 
 # ------------------------------------------------------------------ main
-PAGES = {"chat": page_chat, "image": page_image, "logo": page_logo, "library": page_library,
+PAGES = {"chat": page_chat, "image": page_image, "video": page_video, "logo": page_logo, "library": page_library,
          "search": page_search, "settings": page_settings, "admin": page_admin}
 
 
