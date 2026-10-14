@@ -25,10 +25,16 @@ macOS/Linux: `bash start.sh`
 
 ### Image & video models (Hugging Face)
 
-FLUX.1 Krea and Wan2.1 run through Hugging Face Inference Providers. Create a token with the
-**"Make calls to Inference Providers"** permission at https://huggingface.co/settings/tokens and set `HF_TOKEN`
-(in `.env`, or paste it in **Admin › Free AI keys**). Free Hugging Face accounts get a small monthly credit;
-when it runs out, images fall back to free Pollinations automatically and video shows a clear message.
+Cybok tries the free engines first and falls back automatically:
+
+| | 1st (free) | 2nd (HF credits) | 3rd |
+|---|---|---|---|
+| **Image** | FLUX.1 Krea official Space (ZeroGPU) | FLUX.1 Krea on Inference Providers | Pollinations (free, always on) |
+| **Video** | Wan2.1-T2V-1.3B Self-Forcing Space (ZeroGPU), stream → MP4 | Wan2.1-T2V-1.3B on fal-ai | — |
+
+Works without any key, but Hugging Face gives anonymous visitors only a little free GPU time per day.
+A **free** Hugging Face token gives much more: create one at https://huggingface.co/settings/tokens
+(tick *"Make calls to Inference Providers"*) and set `HF_TOKEN` in `.env`, Streamlit secrets, or **Admin › Free AI keys**.
 
 ### Deploy on Streamlit Community Cloud
 

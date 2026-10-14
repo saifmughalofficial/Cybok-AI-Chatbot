@@ -6,6 +6,7 @@ import json
 import os
 import re
 import secrets
+import time
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -72,7 +73,75 @@ html, body, [class*="st-"] {{ font-family: "Inter", system-ui, sans-serif; }}
 [data-testid="stSidebar"] button[kind="tertiary"] {{ justify-content: flex-start; text-align: left; }}
 [data-testid="stSidebar"] button[kind="tertiary"] p {{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
 .block-container {{ padding-top: 2.2rem; }}
+
+/* ---- motion: short, eased, never in the way ---- */
+@keyframes cyFadeUp {{ from {{ opacity: 0; transform: translateY(8px); }} to {{ opacity: 1; transform: none; }} }}
+@keyframes cyFade {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
+@keyframes cyShift {{ 0%, 100% {{ background-position: 0% 50%; }} 50% {{ background-position: 100% 50%; }} }}
+@keyframes cySweep {{ from {{ background-position: -200% 0; }} to {{ background-position: 200% 0; }} }}
+@keyframes cyPulse {{ 0%, 100% {{ opacity: .55; }} 50% {{ opacity: 1; }} }}
+.cy-hero, .cy-brand {{ background-size: 200% 200%; animation: cyShift 9s ease-in-out infinite; }}
+.cy-hero {{ animation: cyShift 9s ease-in-out infinite, cyFadeUp .5s cubic-bezier(.22,.8,.24,1) both; }}
+[data-testid="stChatMessage"] {{ animation: cyFadeUp .32s cubic-bezier(.22,.8,.24,1) both;
+  border-radius: 14px; transition: background-color .2s ease; }}
+[data-testid="stChatMessage"]:hover {{ background-color: rgba(77,132,255,.04); }}
+.stButton > button, .stDownloadButton > button, .stFormSubmitButton > button, .stLinkButton > a {{
+  border-radius: 10px; transition: transform .15s ease, box-shadow .2s ease, background-color .2s ease,
+  border-color .2s ease; }}
+.stButton > button:hover, .stDownloadButton > button:hover, .stFormSubmitButton > button:hover {{
+  transform: translateY(-1px); box-shadow: 0 6px 18px -8px rgba(77,132,255,.55); }}
+.stButton > button:active, .stFormSubmitButton > button:active {{ transform: translateY(0) scale(.98); }}
+button[kind="primary"], button[kind="primaryFormSubmit"] {{
+  background: linear-gradient(135deg,#ff3448 0%,#b03dff 48%,#2f73ff 100%) !important; background-size: 200% 200% !important;
+  border: none !important; color: #fff !important; }}
+button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover {{ animation: cyShift 3s ease infinite; }}
+[data-testid="stImage"] img, [data-testid="stVideo"] video {{ border-radius: 12px; animation: cyFade .45s ease both;
+  transition: transform .25s cubic-bezier(.22,.8,.24,1), box-shadow .25s ease; }}
+[data-testid="stColumn"] [data-testid="stImage"] img:hover {{ transform: translateY(-3px);
+  box-shadow: 0 14px 34px -14px rgba(0,0,0,.7); }}
+[data-testid="stExpander"], [data-testid="stForm"] {{ animation: cyFadeUp .3s ease both; border-radius: 12px; }}
+[data-testid="stStatusWidget"], [data-testid="stSpinner"] {{ animation: cyPulse 1.6s ease-in-out infinite; }}
+.cy-shimmer {{ border-radius: 14px; aspect-ratio: var(--ar, 1); width: 100%; margin: .25rem 0 1rem;
+  background: linear-gradient(100deg, rgba(255,255,255,.03) 20%, rgba(194,91,255,.16) 40%, rgba(61,130,255,.16) 55%,
+  rgba(255,255,255,.03) 75%); background-size: 200% 100%; animation: cySweep 1.6s linear infinite;
+  border: 1px solid rgba(255,255,255,.06); }}
+@media (prefers-reduced-motion: reduce) {{ *, *::before, *::after {{ animation: none !important;
+  transition: none !important; }} }}
 </style>""", unsafe_allow_html=True)
+
+
+def shimmer(aspect="1", n=1):
+    """Animated placeholder shown while media is being generated."""
+    ph = st.empty()
+    cols = ph.columns(n)
+    for c in cols:
+        c.markdown(f'<div class="cy-shimmer" style="--ar:{aspect}"></div>', unsafe_allow_html=True)
+    return ph
+
+
+def video_progress():
+    """A live status box with a progress bar; returns (progress_callback, finish)."""
+    t0 = time.time()
+    box = st.status("🎬 Creating your video…", expanded=True)
+    with box:
+        ph = shimmer("16/9")
+        bar = st.progress(0.0)
+        note = st.empty()
+    state = {"frac": 0.0}
+
+    def cb(text, frac):
+        if frac is not None:
+            state["frac"] = max(state["frac"], min(1.0, frac))
+        else:  # no real progress from the engine: creep forward so the bar never looks frozen
+            state["frac"] = min(0.9, state["frac"] + 0.004)
+        bar.progress(state["frac"])
+        note.caption(f"{text} · {int(time.time() - t0)}s")
+
+    def finish(ok, label):
+        ph.empty()
+        box.update(label=label, state="complete" if ok else "error", expanded=False)
+
+    return cb, finish
 
 
 def brand(size="sm"):
@@ -486,13 +555,20 @@ def page_chat(user):
                 text = (text + " " + transcribe(prompt.audio)).strip()
         if text.lower().startswith(("/image", "/video")):
             mode, text = text[1:6].lower(), text[6:].strip()
+        if mode in ("image", "video"):
+            with st.chat_message("user", avatar=avatar_for(user)):
+                st.markdown(("🎨 Create image: " if mode == "image" else "🎬 Create video: ") + text)
         if mode == "image":
-            with st.chat_message("assistant", avatar=MARK), st.spinner("Painting your image…"):
-                sv.chat_image(user, conv, text)
+            with st.chat_message("assistant", avatar=MARK):
+                shimmer()
+                with st.spinner("Painting your image with FLUX.1 Krea…"):
+                    sv.chat_image(user, conv, text)
             st.rerun()
         if mode == "video":
-            with st.chat_message("assistant", avatar=MARK), st.spinner("Filming your video… this can take a minute."):
-                sv.chat_video(user, conv, text)
+            with st.chat_message("assistant", avatar=MARK):
+                cb, finish = video_progress()
+                sv.chat_video(user, conv, text, cb)
+                finish(True, "Video ready")
             st.rerun()
         ids = []
         for f in prompt.files:
@@ -564,32 +640,40 @@ def page_image(user):
         if not prompt.strip():
             st.error("Describe the image you want.")
         else:
-            with st.spinner("Creating your image… free models can take up to a minute."):
+            w, h = image_ai.SIZES[size]
+            ph = shimmer(f"{w}/{h}", min(count, 4))
+            with st.spinner("Creating your image… free GPUs can take up to a minute."):
                 try:
                     items = sv.generate_images(user, sv.clean_text(prompt, 1500), style, size, count, "image",
                                                provider=provider)
                     for label in {json.loads(g.meta or "{}").get("provider", "") for g in items}:
-                        (st.warning if "fallback" in label else st.success)(f"Generated with {label}")
+                        if "fallback" in label:
+                            st.warning(f"Generated with {label}. FLUX.1 Krea's free GPU time was busy or used up — "
+                                       "add a free Hugging Face token (HF_TOKEN in Admin › Free AI keys) for more.")
+                        else:
+                            st.success(f"Generated with {label}")
                 except (sv.ServiceError, image_ai.ImageError) as exc:
                     st.error(str(exc))
+            ph.empty()
     st.subheader("Recent")
     grid(user, sv.list_generated(user, "image", 24))
 
 
 def page_video(user):
     st.title("🎬 Create video")
-    st.caption(f"Text-to-video with **{video_ai.VIDEO_MODEL}** (needs HF_TOKEN). A clip takes about a minute.")
+    st.caption(f"Text-to-video with **{video_ai.VIDEO_MODEL}** on free Hugging Face GPUs. A clip takes 1–4 minutes.")
     with st.form("vid"):
         prompt = st.text_area("Describe your video", placeholder="A corgi running on a beach at golden hour, "
                                                                  "slow motion, cinematic")
         go_btn = st.form_submit_button("Generate video", type="primary")
     if go_btn:
-        with st.spinner("Filming your video… this can take a minute."):
-            try:
-                sv.generate_video(user, prompt)
-                st.success(f"Generated with {video_ai.VIDEO_LABEL}")
-            except (sv.ServiceError, image_ai.ImageError) as exc:
-                st.error(str(exc))
+        cb, finish = video_progress()
+        try:
+            g = sv.generate_video(user, prompt, cb)
+            finish(True, f"Video ready · {json.loads(g.meta)['provider']}")
+        except (sv.ServiceError, image_ai.ImageError) as exc:
+            finish(False, "Video failed")
+            st.error(str(exc))
     st.subheader("Recent")
     grid(user, sv.list_generated(user, "video", 12), n=2)
 

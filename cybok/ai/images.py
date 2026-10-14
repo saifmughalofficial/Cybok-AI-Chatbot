@@ -112,17 +112,42 @@ def hf_error(exc, what):
     return f"{what} error: {str(exc)[:200]}"
 
 
+KREA_SPACE = "black-forest-labs/FLUX.1-Krea-dev"
+
+
+def _krea_space(prompt, width, height, seed, timeout, token):
+    """The official FLUX.1 Krea Space (free ZeroGPU; a free HF token gives more quota)."""
+    from . import spaces
+    try:
+        c = spaces.client(KREA_SPACE, token)
+        job = c.submit(prompt[:1500], seed, False, width, height, 4.5, 28, api_name="/infer")
+        out = spaces.run(job, timeout)[-1][0]
+    except spaces.SpaceError as exc:
+        raise ImageError(f"FLUX.1 Krea Space: {exc}")
+    path = out if isinstance(out, str) else (out or {}).get("path")
+    if not path or not os.path.exists(path):
+        raise ImageError("FLUX.1 Krea Space returned no image.")
+    with open(path, "rb") as fh:
+        data = fh.read()
+    ext = path.rsplit(".", 1)[-1].lower()
+    return data, {"webp": "image/webp", "png": "image/png"}.get(ext, "image/jpeg"), "FLUX.1 Krea [dev] · HF Space"
+
+
 def _flux_krea(prompt, width, height, seed, timeout, cfg):
-    """FLUX.1 Krea [dev] through Hugging Face Inference Providers (fal-ai / wavespeed, picked automatically)."""
+    """FLUX.1 Krea [dev]: free Space first, then Hugging Face Inference Providers (fal-ai / wavespeed)."""
     token = cfg.get("hf_token", "")
-    if not token:
-        raise ImageError("FLUX.1 Krea needs a Hugging Face token: add HF_TOKEN in Admin › Free AI keys.")
+    try:
+        return _krea_space(prompt, width, height, seed, timeout, token)
+    except ImageError as exc:
+        if not token:
+            raise
+        space_error = exc
     from huggingface_hub import InferenceClient
     client = InferenceClient(provider="auto", api_key=token, timeout=timeout)
     try:
         img = client.text_to_image(prompt[:1500], model=KREA_MODEL, width=width, height=height, seed=seed)
     except Exception as exc:
-        raise ImageError(hf_error(exc, "FLUX.1 Krea"))
+        raise ImageError(f"{space_error} · {hf_error(exc, 'FLUX.1 Krea providers')}")
     buf = io.BytesIO()
     img.save(buf, "PNG")
     return buf.getvalue(), "image/png", "FLUX.1 Krea [dev] · Hugging Face"
@@ -157,5 +182,5 @@ def generate(prompt, cfg, style="none", size="square", seed=None, timeout=150):
             raise
         # A keyed provider failed (no token, no credits, busy): fall back to the free provider.
         data, mime, label = _pollinations(full, width, height, seed, timeout, cfg)
-        label += f" (fallback — {exc})"
+        label += " (fallback: quota used up)" if "quota" in str(exc) else " (fallback: FLUX.1 Krea busy)"
     return data, mime, label, seed

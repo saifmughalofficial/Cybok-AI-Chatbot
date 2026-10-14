@@ -517,7 +517,7 @@ def chat_image(user, conv, prompt, style="none", size="square"):
     db.session.commit()
 
 
-def chat_video(user, conv, prompt):
+def chat_video(user, conv, prompt, progress=None):
     """Video generation from inside a conversation."""
     prompt = clean_text(prompt, 1500)
     if not prompt:
@@ -527,9 +527,9 @@ def chat_video(user, conv, prompt):
         conv.title = heuristic_title("Video: " + prompt)
     db.session.commit()
     try:
-        g = generate_video(user, prompt)
+        g = generate_video(user, prompt, progress)
         content = (f"Here's your video — *{prompt}*\n\n![{prompt.replace(']', '')}](/media/file/{g.file_id})\n\n"
-                   f"<sub>Generated with {video_ai.VIDEO_LABEL}</sub>")
+                   f"<sub>Generated with {json.loads(g.meta)['provider']}</sub>")
         a = Message(conversation_id=conv.id, role="assistant", model="video", content=content)
     except (image_ai.ImageError, ServiceError) as exc:
         a = Message(conversation_id=conv.id, role="assistant", content=f"⚠️ {exc}", status="error", model="video")
@@ -538,7 +538,7 @@ def chat_video(user, conv, prompt):
     db.session.commit()
 
 
-def generate_video(user, prompt):
+def generate_video(user, prompt, progress=None):
     problem = rate_problem("video", user.id, cfg("RATE_IMAGE_PER_MIN"))
     if problem:
         raise ServiceError(problem)
@@ -546,7 +546,7 @@ def generate_video(user, prompt):
     if not prompt:
         raise ServiceError("Describe the video you want.")
     try:
-        data = video_ai.generate(prompt, get_secret("HF_TOKEN"))
+        data, label = video_ai.generate(prompt, get_secret("HF_TOKEN"), progress=progress)
     except image_ai.ImageError as exc:
         log_error("video", str(exc), user.id)
         log_usage("video", video_ai.VIDEO_MODEL, ok=False, user_id=user.id)
@@ -554,7 +554,7 @@ def generate_video(user, prompt):
     name = safe_display_name(re.sub(r"\s+", "-", prompt[:40]).strip("-") or "video") + ".mp4"
     f = save_bytes(user.id, data, name, mime="video/mp4", source="generated", in_library=False)
     g = GeneratedContent(user_id=user.id, content_type="video", title=prompt[:120], prompt=prompt, file_id=f.id,
-                         style="wan2.1", meta=json.dumps({"provider": video_ai.VIDEO_LABEL}), saved=False)
+                         style="wan2.1", meta=json.dumps({"provider": label}), saved=False)
     db.session.add(g)
     db.session.commit()
     log_usage("video", video_ai.VIDEO_MODEL, user_id=user.id)
