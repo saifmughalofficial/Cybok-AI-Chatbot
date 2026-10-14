@@ -60,7 +60,8 @@ def css(font_size="md"):
     fs = {"sm": "14px", "md": "15.5px", "lg": "17.5px"}.get(font_size, "15.5px")
     st.markdown(f"""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Michroma&display=swap');
-html, body, [class*="st-"] {{ font-family: "Inter", system-ui, sans-serif; }}
+html, body, .stApp, .stApp p, .stApp input, .stApp textarea, .stApp button, .stApp label {{
+  font-family: "Inter", system-ui, sans-serif; }}
 .cy-brand {{ font-family: "Michroma", sans-serif; font-size: 1.35rem; letter-spacing: .08em;
   background: linear-gradient(100deg,#ff4d5e 0%,#c25bff 45%,#3d82ff 90%); -webkit-background-clip: text;
   background-clip: text; color: transparent; margin: 0; }}
@@ -70,8 +71,14 @@ html, body, [class*="st-"] {{ font-family: "Inter", system-ui, sans-serif; }}
 .cy-tag {{ color: #a9aec6; margin-top: -.4rem; }}
 [data-testid="stChatMessage"] {{ font-size: {fs}; }}
 [data-testid="stChatMessage"] p {{ font-size: {fs}; }}
-[data-testid="stSidebar"] button[kind="tertiary"] {{ justify-content: flex-start; text-align: left; }}
-[data-testid="stSidebar"] button[kind="tertiary"] p {{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+[data-testid="stSidebar"] [data-testid^="stBaseButton-"] {{ justify-content: flex-start; text-align: left;
+  padding-left: .75rem; }}
+[data-testid="stSidebar"] [data-testid="stBaseButton-tertiary"]:hover {{ background: rgba(77,132,255,.08); }}
+[data-testid="stSidebar"] [data-testid^="stBaseButton-"] > div {{ justify-content: flex-start; width: 100%; }}
+[data-testid="stSidebar"] [data-testid^="stBaseButton-"] p {{ white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; text-align: left; }}
+[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {{ justify-content: center; padding-left: 0; }}
+[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] > div {{ justify-content: center; }}
 .block-container {{ padding-top: 2.2rem; }}
 
 /* ---- motion: short, eased, never in the way ---- */
@@ -145,8 +152,8 @@ def video_progress():
 
 
 def brand(size="sm"):
-    c1, c2 = st.columns([1, 6] if size == "sm" else [1, 3], vertical_alignment="center")
-    c1.image(MARK, width=40 if size == "sm" else 88)
+    c1, c2 = st.columns([1, 6] if size == "sm" else [1, 5], vertical_alignment="center", gap="small")
+    c1.image(MARK, width=40 if size == "sm" else 72)
     c2.markdown('<p class="cy-brand">CYBOK</p>', unsafe_allow_html=True)
 
 
@@ -423,7 +430,7 @@ def chat_menu(user, conv):
 
 
 def message_actions(user, conv, m, is_last):
-    cols = st.columns([1, 1, 1, 1, 1, 8])
+    cols = st.columns([0.6, 0.6, 0.6, 0.6, 0.6, 10], gap="small")
     if cols[0].button("👍", key=f"up{m.id}", type="primary" if m.feedback == 1 else "tertiary", help="Good answer"):
         sv.set_feedback(user, m.id, 1)
         st.rerun()

@@ -8,5 +8,8 @@ textColor = "#eef0f8"
 [server]
 maxUploadSize = 200
 
+[client]
+toolbarMode = "viewer"
+
 [browser]
 gatherUsageStats = false
